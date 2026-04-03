@@ -398,3 +398,16 @@ Assignment1/
 5. **Clean Layers**: Domain models have zero framework dependencies
 6. **Interface-Based**: Dependencies use Go interfaces (Ports pattern)
 
+## Defense Notes
+
+- **Bounded Contexts**: Order domain and Payment domain are completely separate
+- **Service Decomposition**: Each service manages its own lifecycle and data
+- **Financial Rules**: Amount validation and payment limits enforced strictly
+- **Resilience**: Proper timeout handling prevents hanging requests
+- **Status Codes**: HTTP status codes correctly map to business outcomes
+- **Idempotency**: Duplicate requests handled safely with Idempotency-Key
+
+---
+
+**Deadline**: 01.04.2026 23:59  
+**Author**: Advanced Programming 2 - Assignment 1

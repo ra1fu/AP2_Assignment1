@@ -83,6 +83,20 @@ func (uc *OrderUseCase) GetOrder(id string) (*domain.Order, error) {
 	return order, nil
 }
 
+// GetRecentOrders retrieves the most recent orders up to the limit.
+func (uc *OrderUseCase) GetRecentOrders(limit int) ([]*domain.Order, error) {
+	if limit <= 0 {
+		return nil, fmt.Errorf("limit must be greater than 0")
+	}
+
+	orders, err := uc.orderRepo.GetRecentOrders(limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent orders: %w", err)
+	}
+
+	return orders, nil
+}
+
 // CancelOrder cancels an order.
 // Business rule: Only "Pending" orders can be cancelled. Once a payment is successful ("Paid"),
 // cancellation is prohibited.

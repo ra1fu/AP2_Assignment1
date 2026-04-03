@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 
 	"order-service/internal/domain"
 
@@ -94,6 +95,41 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetRecentOrders handles GET /orders/recent with an optional limit parameter.
+func (h *OrderHandler) GetRecentOrders(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
+		return
+	}
+
+	if limit > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "limit cannot exceed 100"})
+		return
+	}
+
+	orders, err := h.service.GetRecentOrders(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get recent orders"})
+		return
+	}
+
+	response := make([]OrderResponse, 0)
+	for _, order := range orders {
+		response = append(response, OrderResponse{
+			ID:         order.ID,
+			CustomerID: order.CustomerID,
+			ItemName:   order.ItemName,
+			Amount:     order.Amount,
+			Status:     order.Status,
+			CreatedAt:  order.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // CancelOrder handles PATCH /orders/{id}/cancel.
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	orderID := c.Param("id")
@@ -125,6 +161,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 // SetupRoutes configures the order routes.
 func SetupRoutes(router *gin.Engine, handler *OrderHandler) {
 	router.POST("/orders", handler.CreateOrder)
+	router.GET("/orders/recent", handler.GetRecentOrders)
 	router.GET("/orders/:id", handler.GetOrder)
 	router.PATCH("/orders/:id/cancel", handler.CancelOrder)
 }

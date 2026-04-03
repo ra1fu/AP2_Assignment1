@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # --------------------
+  # Databases
+  # --------------------
+  order-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: orderuser
+      POSTGRES_PASSWORD: orderpassword
+      POSTGRES_DB: orderdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+      - ./order-service/migrations:/docker-entrypoint-initdb.d
+
+  payment-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: paymentuser
+      POSTGRES_PASSWORD: paymentpassword
+      POSTGRES_DB: paymentdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+      - ./payment-service/migrations:/docker-entrypoint-initdb.d
+
+  # --------------------
+  # Microservices
+  # --------------------
+  order-service:
+    build:
+      context: ./order-service
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=order-db
+      - DB_PORT=5432
+      - DB_USER=orderuser
+      - DB_PASSWORD=orderpassword
+      - DB_NAME=orderdb
+      - PAYMENT_SERVICE_URL=http://payment-service:8081
+    depends_on:
+      - order-db
+
+  payment-service:
+    build:
+      context: ./payment-service
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=payment-db
+      - DB_PORT=5432
+      - DB_USER=paymentuser
+      - DB_PASSWORD=paymentpassword
+      - DB_NAME=paymentdb
+    depends_on:
+      - payment-db
+
+volumes:
+  order-db-data:
+  payment-db-data:

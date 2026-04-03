@@ -16,6 +16,7 @@ type Order struct {
 type OrderRepository interface {
 	Save(order *Order) error
 	GetByID(id string) (*Order, error)
+	GetRecentOrders(limit int) ([]*Order, error)
 	Update(order *Order) error
 }
 
@@ -29,5 +30,6 @@ type PaymentClient interface {
 type OrderUseCase interface {
 	CreateOrder(customerID, itemName string, amount int64) (*Order, error)
 	GetOrder(id string) (*Order, error)
+	GetRecentOrders(limit int) ([]*Order, error)
 	CancelOrder(id string) error
 }

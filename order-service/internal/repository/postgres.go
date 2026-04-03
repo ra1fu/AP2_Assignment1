@@ -67,6 +67,44 @@ func (r *PostgresOrderRepository) GetByID(id string) (*domain.Order, error) {
 	return order, nil
 }
 
+// GetRecentOrders retrieves the most recent orders up to the limit.
+func (r *PostgresOrderRepository) GetRecentOrders(limit int) ([]*domain.Order, error) {
+	query := `
+		SELECT id, customer_id, item_name, amount, status, created_at
+		FROM orders
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := r.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*domain.Order
+	for rows.Next() {
+		var order domain.Order
+		if err := rows.Scan(
+			&order.ID,
+			&order.CustomerID,
+			&order.ItemName,
+			&order.Amount,
+			&order.Status,
+			&order.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		orders = append(orders, &order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
 // Update updates an existing order in the database.
 func (r *PostgresOrderRepository) Update(order *domain.Order) error {
 	query := `
