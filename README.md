@@ -2,10 +2,12 @@
 
 ## Overview
 
-This project implements a two-service microservices platform in Go following Clean Architecture principles. The platform consists of:
+This project implements a two-service microservices platform in Go following Clean Architecture principles. For Assignment 2, we migrated inter-service communication from REST to **gRPC** using a **Contract-First approach**:
 
-1. **Order Service** (port 8080) - Manages customer orders and their lifecycle
-2. **Payment Service** (port 8081) - Processes and authorizes payments
+1. **Contract Repository (Repo A)**: Contains Protocol Buffers (`.proto`) and GitHub Actions for automated code generation.
+2. **Generated Repository (Repo B)**: Stores the generated Go code (the `*.pb.go` and `*_grpc.pb.go` files).
+3. **Order Service** (port 8080 for REST, 50051 for gRPC Streaming) - Manages customer orders and streams updates via gRPC. 
+4. **Payment Service** (port 50052 for gRPC Unary) - Processes and authorizes payments using gRPC. Includes a logging interceptor.
 
 ## Architecture Decisions
 
@@ -19,8 +21,9 @@ service/
 ├── internal/
 │   ├── domain/                # Domain models and interfaces (Ports)
 │   ├── usecase/               # Business logic layer
-│   ├── repository/            # Data access and external clients
-│   ├── transport/http/        # HTTP handlers (Delivery layer)
+│   ├── repository/            # Data access and external clients (gRPC Client)
+│   ├── transport/grpc/        # gRPC Servers (Delivery layer)
+│   ├── transport/http/        # HTTP handlers (Delivery layer for public API)
 │   └── app/                   # Application setup and DI configuration
 ├── migrations/                # SQL migration scripts
 ├── go.mod                     # Module definition
@@ -35,51 +38,61 @@ service/
    - **Domain Layer**: Pure business rules, no framework dependencies
    - **Use Case Layer**: Business logic and state transitions
    - **Repository Layer**: Data persistence and external service calls
-   - **Transport Layer**: HTTP request/response handling
+   - **Transport Layer**: gRPC and HTTP request/response handling
 
 3. **Microservices Architecture**:
    - **Database per Service**: Each service has its own PostgreSQL database
-   - **No Shared Code**: Each service has independent domain models
+   - **No Shared Code**: Services share contracts via the external generated Repo B, no shared domain models
    - **Bounded Contexts**: Clear ownership boundaries
-   - **Synchronous Communication**: REST-based inter-service communication with HTTP
+   - **Synchronous Communication**: gRPC-based inter-service communication 
 
 4. **Resilience**:
-   - HTTP client timeout: 2 seconds (max) for Payment Service calls
-   - Proper error handling and status code mapping
-   - Service unavailability returns 503 Service Unavailable
+   - gRPC context timeout: 2 seconds (max) for Payment Service calls
+   - Proper error handling and `google.golang.org/grpc/status` mapping
 
 5. **Financial Accuracy**:
-   - Amount stored as `int64` (cents), never `float64`
+   - Amount stored as `int64` (cents) in domain, passed as `double` in pb
    - Example: 1000 = $10.00; 100000 = $1,000.00
 
 ## Microservices Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Client (API Consumer)                     │
+│                         Client (API Consumer)                   │
 └────────────────────┬────────────────────────────────────────────┘
-                     │
+                     │ REST (Create Order)
+                     │ gRPC (SubscribeToOrderUpdates)
                      ▼
         ┌────────────────────────────┐
-        │   Order Service (8080)      │
+        │   Order Service            │
         ├────────────────────────────┤
-        │ - HTTP Handler             │
+        │ - HTTP Handler (:8080)     │
+        │ - gRPC Streaming (:50051)  │
         │ - Order Use Case           │
         │ - Order Repository (DB)    │
-        │ - Payment Client (HTTP)    │
+        │ - Payment Client (gRPC)    │
         └────────────┬───────────────┘
                      │
-                     │ REST Call
+                     │ gRPC Call (ProcessPayment)
                      │ (with 2sec timeout)
                      ▼
         ┌────────────────────────────┐
-        │   Payment Service (8081)    │
+        │   Payment Service          │
         ├────────────────────────────┤
-        │ - HTTP Handler             │
+        │ - gRPC Server (:50052)     │
+        │ - Logging Interceptor      │
         │ - Payment Use Case         │
         │ - Payment Repository (DB)  │
         └────────────────────────────┘
 ```
+
+## Submitting Evidence (For Reviewer)
+
+To run the project:
+1. Ensure your `repo-b` (generated repository) is properly linked in the `go.mod` files of `order-service` and `payment-service`. (Use `go get github.com/youruser/repo-b` once the remote repository is populated by the `ap2-contracts` GitHub Action, or substitute it with a local workspace replacement).
+2. Run `docker-compose up --build`
+3. Try hitting the REST endpoint `POST localhost:8080/orders` to see standard REST functionality.
+4. Try connecting with a gRPC Client (e.g. `grpcurl` or Postman) to `localhost:50051` via `orderv1.OrderService.SubscribeToOrderUpdates` to watch the real-time server-side streaming endpoint pulling status updates!
 
 ## Business Rules
 

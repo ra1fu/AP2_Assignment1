@@ -14,7 +14,7 @@ func main() {
 	dbUser := getEnv("DB_USER", "postgres")
 	dbPassword := getEnv("DB_PASSWORD", "postgres")
 	dbName := getEnv("DB_NAME", "payment_db")
-	port := getEnv("PORT", ":8081")
+	grpcPort := getEnv("GRPC_PORT", ":50052")
 
 	// Create and initialize the app
 	paymentApp, err := app.NewApp(dbHost, dbPort, dbUser, dbPassword, dbName)
@@ -24,8 +24,8 @@ func main() {
 
 	defer paymentApp.Close()
 
-	log.Printf("Payment Service starting on %s", port)
-	if err := paymentApp.Run(port); err != nil {
+	log.Printf("Payment Service gRPC Server starting on %s", grpcPort)
+	if err := paymentApp.Run(grpcPort); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

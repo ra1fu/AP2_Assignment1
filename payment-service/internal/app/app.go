@@ -3,19 +3,21 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	"net"
 
 	"payment-service/internal/repository"
-	"payment-service/internal/transport/http"
+	"payment-service/internal/transport/grpc"
 	"payment-service/internal/usecase"
 
-	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	paymentv1 "github.com/youruser/repo-b/payment/v1"
+	mygrpc "google.golang.org/grpc"
 )
 
 // App represents the Payment Service application.
 type App struct {
-	db     *sql.DB
-	router *gin.Engine
+	db         *sql.DB
+	grpcServer *mygrpc.Server
 }
 
 // NewApp creates and initializes a new Payment Service application.
@@ -36,29 +38,37 @@ func NewApp(dbHost, dbPort, dbUser, dbPassword, dbName string) (*App, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Create router
-	router := gin.Default()
-
 	// Setup dependency injection (Composition Root)
 	paymentRepo := repository.NewPostgresPaymentRepository(db)
 	paymentUC := usecase.NewPaymentUseCase(paymentRepo)
-	paymentHandler := http.NewPaymentHandler(paymentUC)
+	paymentServer := grpc.NewPaymentServer(paymentUC)
 
-	// Setup routes
-	http.SetupRoutes(router, paymentHandler)
+	// Create and apply our interceptor (Bonus Point)
+	interceptor := grpc.LoggingInterceptor()
+
+	// Initialize gRPC Server
+	gServer := mygrpc.NewServer(mygrpc.UnaryInterceptor(interceptor))
+	paymentv1.RegisterPaymentServiceServer(gServer, paymentServer)
 
 	return &App{
-		db:     db,
-		router: router,
+		db:         db,
+		grpcServer: gServer,
 	}, nil
 }
 
-// Run starts the Payment Service server.
+// Run starts the Payment Service gRPC server.
 func (a *App) Run(addr string) error {
-	return a.router.Run(addr)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on %s: %w", addr, err)
+	}
+
+	fmt.Printf("Starting gRPC Payment Service on %s...\n", addr)
+	return a.grpcServer.Serve(listener)
 }
 
-// Close closes the database connection.
+// Close closes the database connection and gracefully stops the gRPC Server.
 func (a *App) Close() error {
+	a.grpcServer.GracefulStop()
 	return a.db.Close()
 }
