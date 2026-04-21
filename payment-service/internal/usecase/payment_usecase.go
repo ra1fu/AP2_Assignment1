@@ -56,6 +56,19 @@ func (uc *PaymentUseCase) GetPaymentStatus(orderID string) (*domain.Payment, err
 	return payment, nil
 }
 
+// ListPayments returns a list of payments within a specific amount range.
+func (uc *PaymentUseCase) ListPayments(min, max int64) ([]*domain.Payment, error) {
+	if min > 0 && max > 0 && min > max {
+		return nil, fmt.Errorf("min_amount cannot be greater than max_amount")
+	}
+
+	payments, err := uc.repo.FindByAmountRange(min, max)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch payments by amount range: %w", err)
+	}
+	return payments, nil
+}
+
 // generatePaymentID generates a unique payment ID.
 func generatePaymentID() string {
 	return fmt.Sprintf("PAY-%d", time.Now().UnixNano())

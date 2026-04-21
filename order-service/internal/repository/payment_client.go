@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	paymentv1 "github.com/youruser/repo-b/payment/v1"
+	paymentv1 "github.com/ra1fu/ap2-repo-b/payment/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

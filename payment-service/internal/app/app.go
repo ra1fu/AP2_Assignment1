@@ -10,7 +10,7 @@ import (
 	"payment-service/internal/usecase"
 
 	_ "github.com/lib/pq"
-	paymentv1 "github.com/youruser/repo-b/payment/v1"
+	paymentv1 "github.com/ra1fu/ap2-repo-b/payment/v1"
 	mygrpc "google.golang.org/grpc"
 )
 

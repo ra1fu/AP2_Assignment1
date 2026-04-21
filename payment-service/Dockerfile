@@ -1,7 +1,6 @@
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY ./payment-service/go.mod ./payment-service/go.sum* ./
-COPY ./mock-repo-b /mock-repo-b
 RUN go mod download
 COPY ./payment-service .
 RUN go mod tidy

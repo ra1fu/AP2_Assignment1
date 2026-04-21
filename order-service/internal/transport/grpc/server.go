@@ -5,7 +5,7 @@ import (
 
 	"order-service/internal/usecase"
 
-	orderv1 "github.com/youruser/repo-b/order/v1"
+	orderv1 "github.com/ra1fu/ap2-repo-b/order/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"

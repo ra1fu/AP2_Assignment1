@@ -5,7 +5,7 @@ import (
 
 	"payment-service/internal/usecase"
 
-	paymentv1 "github.com/youruser/repo-b/payment/v1"
+	paymentv1 "github.com/ra1fu/ap2-repo-b/payment/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -47,5 +47,30 @@ func (s *PaymentServer) ProcessPayment(ctx context.Context, req *paymentv1.Payme
 		PaymentId:   payment.ID,
 		Status:      payment.Status,
 		ProcessedAt: timestamppb.New(payment.CreatedAt),
+	}, nil
+}
+
+// ListPayments handles the incoming gRPC request to fetch a list of payments by amount range.
+func (s *PaymentServer) ListPayments(ctx context.Context, req *paymentv1.ListPaymentsRequest) (*paymentv1.ListPaymentsResponse, error) {
+	if req.GetMinAmount() > 0 && req.GetMaxAmount() > 0 && req.GetMinAmount() > req.GetMaxAmount() {
+		return nil, status.Error(codes.InvalidArgument, "min_amount cannot be greater than max_amount")
+	}
+
+	payments, err := s.useCase.ListPayments(req.GetMinAmount(), req.GetMaxAmount())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list payments: %v", err)
+	}
+
+	var pbPayments []*paymentv1.PaymentResponse
+	for _, payment := range payments {
+		pbPayments = append(pbPayments, &paymentv1.PaymentResponse{
+			PaymentId:   payment.ID,
+			Status:      payment.Status,
+			ProcessedAt: timestamppb.New(payment.CreatedAt),
+		})
+	}
+
+	return &paymentv1.ListPaymentsResponse{
+		Payments: pbPayments,
 	}, nil
 }

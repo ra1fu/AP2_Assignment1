@@ -1,7 +1,6 @@
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY ./order-service/go.mod ./order-service/go.sum* ./
-COPY ./mock-repo-b /mock-repo-b
 RUN go mod download
 COPY ./order-service .
 RUN go mod tidy

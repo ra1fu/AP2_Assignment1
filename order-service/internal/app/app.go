@@ -12,7 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
-	orderv1 "github.com/youruser/repo-b/order/v1"
+	orderv1 "github.com/ra1fu/ap2-repo-b/order/v1"
 	mygrpc "google.golang.org/grpc"
 )
 

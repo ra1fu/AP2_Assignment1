@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/lib/pq v1.10.9
-	github.com/youruser/repo-b v0.0.0-00010101000000-000000000000
+	github.com/ra1fu/ap2-repo-b v0.0.0-20260421094756-cb1102575e0e
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -36,5 +36,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260120221211-b8f7ae30c516 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/youruser/repo-b => ../mock-repo-b
