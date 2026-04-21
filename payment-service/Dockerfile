@@ -1,26 +1,13 @@
-FROM golang:1.22-alpine AS builder
-
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
-
-# Загружаем зависимости
-COPY go.mod ./
-# Если будет go.sum: COPY go.sum ./
+COPY ./payment-service/go.mod ./payment-service/go.sum* ./
 RUN go mod download
-
-# Копируем исходный код
-COPY . .
-
-# Собираем бинарник
+COPY ./payment-service .
+RUN go mod tidy
 RUN GOOS=linux go build -o payment-service ./cmd/payment-service/main.go
-
-# Финальный легковесный образ
-FROM alpine:latest  
+FROM alpine:latest
 WORKDIR /app
-
 COPY --from=builder /app/payment-service .
-# Копируем SQL-скрипты миграций
 COPY --from=builder /app/migrations ./migrations
-
-EXPOSE 8081
-
+EXPOSE 8081 50052
 CMD ["./payment-service"]

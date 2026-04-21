@@ -96,6 +96,34 @@ func (r *PostgresPaymentRepository) GetByID(id string) (*domain.Payment, error) 
 	return payment.ToDomainPayment(), nil
 }
 
+// FindByAmountRange retrieves payments within a specific amount range.
+func (r *PostgresPaymentRepository) FindByAmountRange(min, max int64) ([]*domain.Payment, error) {
+	query := `
+		SELECT id, order_id, transaction_id, amount, status, created_at
+		FROM payments
+		WHERE ($1 = 0 OR amount >= $1) AND ($2 = 0 OR amount <= $2)
+	`
+	rows, err := r.db.Query(query, min, max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var payments []*domain.Payment
+	for rows.Next() {
+		var p Payment
+		if err := rows.Scan(&p.ID, &p.OrderID, &p.TransactionID, &p.Amount, &p.Status, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		payments = append(payments, p.ToDomainPayment())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return payments, nil
+}
+
 // Payment is a repository model (internal to repository, not part of domain).
 type Payment struct {
 	ID            string

@@ -15,7 +15,8 @@ func main() {
 	dbPassword := getEnv("DB_PASSWORD", "postgres")
 	dbName := getEnv("DB_NAME", "order_db")
 	port := getEnv("PORT", ":8080")
-	paymentServiceURL := getEnv("PAYMENT_SERVICE_URL", "http://localhost:8081")
+	grpcPort := getEnv("GRPC_PORT", ":50051")
+	paymentServiceURL := getEnv("PAYMENT_SERVICE_URL", "localhost:8081") // Note: gRPC usually doesn't use http://
 
 	// Create and initialize the app
 	orderApp, err := app.NewApp(dbHost, dbPort, dbUser, dbPassword, dbName, paymentServiceURL)
@@ -25,8 +26,9 @@ func main() {
 
 	defer orderApp.Close()
 
-	log.Printf("Order Service starting on %s", port)
-	if err := orderApp.Run(port); err != nil {
+	log.Printf("Order Service REST API starting on %s", port)
+	log.Printf("Order Service gRPC Server starting on %s", grpcPort)
+	if err := orderApp.Run(port, grpcPort); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

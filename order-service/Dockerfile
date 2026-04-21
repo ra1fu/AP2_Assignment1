@@ -1,26 +1,13 @@
-FROM golang:1.22-alpine AS builder
-
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
-
-# Загружаем зависимости
-COPY go.mod ./
-# Если будет go.sum: COPY go.sum ./
+COPY ./order-service/go.mod ./order-service/go.sum* ./
 RUN go mod download
-
-# Копируем исходный код
-COPY . .
-
-# Собираем бинарник
+COPY ./order-service .
+RUN go mod tidy
 RUN GOOS=linux go build -o order-service ./cmd/order-service/main.go
-
-# Финальный легковесный образ
-FROM alpine:latest  
+FROM alpine:latest
 WORKDIR /app
-
 COPY --from=builder /app/order-service .
-# Копируем SQL-скрипты миграций
 COPY --from=builder /app/migrations ./migrations
-
-EXPOSE 8080
-
+EXPOSE 8080 50051
 CMD ["./order-service"]

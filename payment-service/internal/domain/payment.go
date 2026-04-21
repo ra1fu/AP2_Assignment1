@@ -17,6 +17,7 @@ type PaymentRepository interface {
 	Save(payment *Payment) error
 	GetByOrderID(orderID string) (*Payment, error)
 	GetByID(id string) (*Payment, error)
+	FindByAmountRange(min, max int64) ([]*Payment, error)
 }
 
 // PaymentService defines the business logic for payments.

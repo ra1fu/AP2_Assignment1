@@ -15,6 +15,11 @@ services:
     volumes:
       - order-db-data:/var/lib/postgresql/data
       - ./order-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orderuser -d orderdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   payment-db:
     image: postgres:15-alpine
@@ -27,38 +32,52 @@ services:
     volumes:
       - payment-db-data:/var/lib/postgresql/data
       - ./payment-service/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentuser -d paymentdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # --------------------
   # Microservices
   # --------------------
   order-service:
     build:
-      context: ./order-service
+      context: .
+      dockerfile: ./order-service/Dockerfile
     ports:
-      - "8080:8080"
+      - "8082:8080" # Changed host port to 8082 to avoid Nginx conflict
+      - "50051:50051" # Added for Order gRPC Streaming
     environment:
       - DB_HOST=order-db
       - DB_PORT=5432
       - DB_USER=orderuser
       - DB_PASSWORD=orderpassword
       - DB_NAME=orderdb
-      - PAYMENT_SERVICE_URL=http://payment-service:8081
+      - PAYMENT_SERVICE_URL=payment-service:50052 # Changed to gRPC Endpoint
+      - GRPC_PORT=:50051
     depends_on:
-      - order-db
+      order-db:
+        condition: service_healthy
 
   payment-service:
     build:
-      context: ./payment-service
+      context: .
+      dockerfile: ./payment-service/Dockerfile
     ports:
       - "8081:8081"
+      - "50052:50052" # Added for Payment gRPC Server
     environment:
       - DB_HOST=payment-db
       - DB_PORT=5432
       - DB_USER=paymentuser
       - DB_PASSWORD=paymentpassword
       - DB_NAME=paymentdb
+      - PORT=:8081 # REST PORT
+      - GRPC_PORT=:50052 # GRPC PORT
     depends_on:
-      - payment-db
+      payment-db:
+        condition: service_healthy
 
 volumes:
   order-db-data:

@@ -3,21 +3,25 @@ package app
 import (
 	"database/sql"
 	"fmt"
-	nethttp "net/http"
-	"time"
+	"net"
 
 	"order-service/internal/repository"
+	transGrpc "order-service/internal/transport/grpc"
 	"order-service/internal/transport/http"
 	"order-service/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	orderv1 "github.com/ra1fu/ap2-repo-b/order/v1"
+	mygrpc "google.golang.org/grpc"
 )
 
 // App represents the Order Service application.
 type App struct {
-	db     *sql.DB
-	router *gin.Engine
+	db         *sql.DB
+	router     *gin.Engine
+	grpcServer *mygrpc.Server
+	payClient  *repository.GRPCPaymentClient
 }
 
 // NewApp creates and initializes a new Order Service application.
@@ -45,31 +49,55 @@ func NewApp(
 	router := gin.Default()
 
 	// Setup dependency injection (Composition Root)
-	// Create HTTP client with 2-second timeout for Payment Service
-	httpClient := &nethttp.Client{
-		Timeout: 2 * time.Second,
+	// Create gRPC client for Payment Service
+	paymentClient, err := repository.NewGRPCPaymentClient(paymentServiceURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init grpc payment client: %w", err)
 	}
 
 	orderRepo := repository.NewPostgresOrderRepository(db)
-	paymentClient := repository.NewHTTPPaymentClient(paymentServiceURL, httpClient)
 	orderUC := usecase.NewOrderUseCase(orderRepo, paymentClient)
 	orderHandler := http.NewOrderHandler(orderUC)
 
 	// Setup routes
 	http.SetupRoutes(router, orderHandler)
 
+	// Setup gRPC Server for Streaming Order Updates
+	gServer := mygrpc.NewServer()
+	orderServer := transGrpc.NewOrderServer(orderUC)
+	orderv1.RegisterOrderServiceServer(gServer, orderServer)
+
 	return &App{
-		db:     db,
-		router: router,
+		db:         db,
+		router:     router,
+		grpcServer: gServer,
+		payClient:  paymentClient,
 	}, nil
 }
 
 // Run starts the Order Service server.
-func (a *App) Run(addr string) error {
-	return a.router.Run(addr)
+func (a *App) Run(httpAddr, grpcAddr string) error {
+	// Start gRPC securely in a goroutine
+	go func() {
+		listener, err := net.Listen("tcp", grpcAddr)
+		if err != nil {
+			fmt.Printf("failed to listen for grpc on %s: %v\n", grpcAddr, err)
+			return
+		}
+		fmt.Printf("Starting gRPC Order Service Streaming Server on %s...\n", grpcAddr)
+		if err := a.grpcServer.Serve(listener); err != nil {
+			fmt.Printf("gRPC server error: %v\n", err)
+		}
+	}()
+
+	return a.router.Run(httpAddr)
 }
 
 // Close closes the database connection.
 func (a *App) Close() error {
+	a.grpcServer.GracefulStop()
+	if a.payClient != nil {
+		_ = a.payClient.Close()
+	}
 	return a.db.Close()
 }
